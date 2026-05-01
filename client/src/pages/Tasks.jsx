@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../utils/api';
+import api from '../utils/api'
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
