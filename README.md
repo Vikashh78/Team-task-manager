@@ -119,35 +119,7 @@ App runs at `http://localhost:3000`
 3. Whitelist all IPs: `0.0.0.0/0` under Network Access
 4. Copy your connection string — it looks like:
    `mongodb+srv://<user>:<pass>@cluster0.xxxxx.mongodb.net/team-task-manager`
-
-### Step 2 — Deploy Backend on Railway
-1. Go to [railway.app](https://railway.app) and create a new project
-2. Click **New Service** → **GitHub Repo** → select your repo
-3. Set the **Root Directory** to `backend`
-4. Go to **Variables** tab and add:
-   - `MONGO_URI` — your Atlas connection string
-   - `JWT_SECRET` — any long random string (e.g. `openssl rand -hex 32`)
-   - `FRONTEND_URL` — leave blank for now, fill in after frontend deploys
-5. Railway auto-detects Node.js and runs `npm start`
-6. Copy your backend **public URL** (e.g. `https://backend-xxx.railway.app`)
-
-### Step 3 — Deploy Frontend on Railway
-1. In the same Railway project, click **New Service** → **GitHub Repo** again
-2. Set the **Root Directory** to `frontend`
-3. Go to **Variables** tab and add:
-   - `REACT_APP_API_URL` — your backend URL + `/api`
-     e.g. `https://backend-xxx.railway.app/api`
-4. Go to **Settings** tab and set:
-   - Build Command: `npm run build`
-   - Start Command: `npx serve -s build -l $PORT`
-5. Copy your frontend **public URL** (e.g. `https://frontend-xxx.railway.app`)
-
-### Step 4 — Update FRONTEND_URL in Backend
-1. Go back to your backend service on Railway
-2. Update the `FRONTEND_URL` variable to your frontend URL
-3. Railway will auto-redeploy
-
----
+   
 
 ## Environment Variables Reference
 
@@ -228,5 +200,4 @@ App runs at `http://localhost:3000`
 
 ## Live Demo
 
-🚀 **Live URL**: *(paste your Railway frontend URL here after deployment)*
-Save as README.md in the root team-task-manager/ folder.
+🚀 **Live URL**: https://team-task-manager-eta-sepia.vercel.app/login
