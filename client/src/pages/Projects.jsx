@@ -1,181 +1,232 @@
+// client/src/pages/Projects.jsx
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import Modal from '../components/Modal';
 
-const StatCard = ({ label, value, icon, color, sub }) => (
-  <div className="glass-card rounded-2xl p-6 fade-in hover:border-white/10 transition-all">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${color}`}>{icon}</div>
-      {sub && <span className="text-xs text-slate-500 bg-white/5 px-2 py-1 rounded-lg">{sub}</span>}
-    </div>
-    <div className="font-display font-bold text-3xl text-white">{value}</div>
-    <div className="text-slate-400 text-sm mt-1">{label}</div>
-  </div>
-);
+const statusColors = {
+  Active: 'badge-inprogress',
+  Completed: 'badge-completed',
+  'On Hold': 'badge-todo',
+};
 
-const COLORS = ['#64748b', '#3b82f6', '#10b981', '#f43f5e'];
+function ProjectForm({ initial, onSave, onCancel, allUsers }) {
+  const [form, setForm] = useState(
+    initial || { title: '', description: '', status: 'Active', members: [] }
+  );
+  const [saving, setSaving] = useState(false);
 
-export default function Dashboard() {
-  const { user, isAdmin } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get('/tasks/dashboard')
-      .then(r => setStats(r.data))
-      .catch(() => toast.error('Failed to load dashboard'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const chartData = stats ? [
-    { name: 'To-Do', value: stats.todo },
-    { name: 'In Progress', value: stats.inProgress },
-    { name: 'Completed', value: stats.completed },
-    { name: 'Overdue', value: stats.overdue },
-  ].filter(d => d.value > 0) : [];
-
-  const isOverdue = (deadline) => deadline && new Date(deadline) < new Date();
-
-  const formatDate = (d) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const toggleMember = (id) => {
+    setForm(f => ({
+      ...f,
+      members: f.members.includes(id) ? f.members.filter(m => m !== id) : [...f.members, id]
+    }));
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try { await onSave(form); } finally { setSaving(false); }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="fade-in">
-        <h1 className="font-display font-bold text-2xl lg:text-3xl text-white">
-          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'},{' '}
-          <span className="text-blue-400">{user?.name?.split(' ')[0]}</span> 👋
-        </h1>
-        <p className="text-slate-400 mt-1 text-sm">Here's what's happening with your team today.</p>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Project Title *</label>
+        <input className="input-field" placeholder="e.g. Website Redesign" value={form.title}
+          onChange={e => setForm({ ...form, title: e.target.value })} required />
       </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Tasks" value={stats?.total ?? 0} icon="📋" color="bg-blue-500/10 text-blue-400" />
-        <StatCard label="In Progress" value={stats?.inProgress ?? 0} icon="⚡" color="bg-cyan-500/10 text-cyan-400" />
-        <StatCard label="Completed" value={stats?.completed ?? 0} icon="✅" color="bg-emerald-500/10 text-emerald-400" />
-        <StatCard label="Overdue" value={stats?.overdue ?? 0} icon="🚨" color="bg-rose-500/10 text-rose-400" sub="Action needed" />
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+        <textarea className="input-field resize-none" rows={3} placeholder="What is this project about?"
+          value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
       </div>
-
-      {/* Second row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pie chart */}
-        <div className="glass-card rounded-2xl p-6 fade-in">
-          <h2 className="font-display font-bold text-white mb-1">Task Distribution</h2>
-          <p className="text-slate-500 text-xs mb-4">Status overview</p>
-          {chartData.length > 0 ? (
-            <>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: '#131c30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 12 }}
-                    itemStyle={{ color: '#f1f5f9' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {chartData.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS[i] }} />
-                    {d.name} ({d.value})
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-40 text-slate-500 text-sm">
-              <span className="text-3xl mb-2">📊</span>
-              No task data yet
-            </div>
-          )}
-        </div>
-
-        {/* Quick stats */}
-        <div className="glass-card rounded-2xl p-6 fade-in space-y-4">
-          <h2 className="font-display font-bold text-white">Quick Stats</h2>
-          {[
-            { label: 'Projects', value: stats?.projectCount ?? 0, icon: '📁', link: '/projects' },
-            { label: 'To-Do Tasks', value: stats?.todo ?? 0, icon: '📝', link: '/tasks' },
-            { label: 'Done This Sprint', value: stats?.completed ?? 0, icon: '🏆', link: '/tasks' },
-          ].map(s => (
-            <Link key={s.label} to={s.link} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors group">
-              <span className="text-xl">{s.icon}</span>
-              <div className="flex-1">
-                <div className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">{s.label}</div>
-              </div>
-              <div className="font-display font-bold text-white text-lg">{s.value}</div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Progress bars */}
-        <div className="glass-card rounded-2xl p-6 fade-in">
-          <h2 className="font-display font-bold text-white mb-4">Completion Rate</h2>
-          {[
-            { label: 'Completed', value: stats?.completed ?? 0, total: stats?.total ?? 0, color: 'bg-emerald-500' },
-            { label: 'In Progress', value: stats?.inProgress ?? 0, total: stats?.total ?? 0, color: 'bg-blue-500' },
-            { label: 'Overdue', value: stats?.overdue ?? 0, total: stats?.total ?? 0, color: 'bg-rose-500' },
-          ].map(item => {
-            const pct = item.total ? Math.round((item.value / item.total) * 100) : 0;
-            return (
-              <div key={item.label} className="mb-4">
-                <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-                  <span>{item.label}</span>
-                  <span>{pct}%</span>
-                </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
+        <select className="input-field" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+          {['Active', 'Completed', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
       </div>
-
-      {/* Overdue tasks */}
-      {stats?.overdueList?.length > 0 && (
-        <div className="glass-card rounded-2xl p-6 fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-display font-bold text-white flex items-center gap-2">
-                <span className="text-rose-400">⚠</span> Overdue Tasks
-              </h2>
-              <p className="text-slate-500 text-xs mt-0.5">These tasks need immediate attention</p>
-            </div>
-            <Link to="/tasks" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View all →</Link>
-          </div>
-          <div className="space-y-3">
-            {stats.overdueList.map(task => (
-              <div key={task._id} className="flex items-center gap-4 p-4 rounded-xl bg-rose-500/5 border border-rose-500/10">
-                <div className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white truncate">{task.title}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">{task.projectId?.title}</div>
+      {allUsers.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Add Members</label>
+          <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+            {allUsers.map(u => (
+              <label key={u._id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                <input type="checkbox" className="accent-blue-500 w-4 h-4"
+                  checked={form.members.includes(u._id)}
+                  onChange={() => toggleMember(u._id)} />
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xs font-semibold">
+                  {u.name.charAt(0)}
                 </div>
-                <div className="text-xs text-rose-400 shrink-0">Due {formatDate(task.deadline)}</div>
-                <div className="text-xs text-slate-500 shrink-0 hidden sm:block">
-                  {task.assignedTo ? task.assignedTo.name : 'Unassigned'}
+                <div>
+                  <div className="text-sm text-white">{u.name}</div>
+                  <div className="text-xs text-slate-500">{u.email}</div>
                 </div>
-              </div>
+              </label>
             ))}
           </div>
         </div>
       )}
+      <div className="flex gap-3 pt-2">
+        <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
+          {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : initial ? 'Update Project' : 'Create Project'}
+        </button>
+        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+export default function Projects() {
+  const { isAdmin } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      api.get('/projects'),
+      isAdmin ? api.get('/users') : Promise.resolve({ data: [] })
+    ]).then(([p, u]) => {
+      setProjects(p.data);
+      setAllUsers(u.data);
+    }).catch(() => toast.error('Failed to load projects'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async (form) => {
+    try {
+      const res = await api.post('/projects', form);
+      setProjects(prev => [res.data, ...prev]);
+      toast.success('Project created!');
+      setModal(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create project');
+    }
+  };
+
+  const handleEdit = async (form) => {
+    try {
+      const res = await api.put(`/projects/${modal.project._id}`, form);
+      setProjects(prev => prev.map(p => p._id === res.data._id ? res.data : p));
+      toast.success('Project updated!');
+      setModal(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update project');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this project and all its tasks?')) return;
+    try {
+      await api.delete(`/projects/${id}`);
+      setProjects(prev => prev.filter(p => p._id !== id));
+      toast.success('Project deleted');
+    } catch {
+      toast.error('Failed to delete project');
+    }
+  };
+
+  const filtered = projects.filter(p =>
+    p.title.toLowerCase().includes(search.toLowerCase()) ||
+    p.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 fade-in">
+        <div>
+          <h1 className="font-display font-bold text-2xl lg:text-3xl text-white">Projects</h1>
+          <p className="text-slate-400 text-sm mt-1">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setModal('create')} className="btn-primary">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            New Project
+          </button>
+        )}
+      </div>
+
+      <div className="relative fade-in">
+        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input className="input-field pl-11" placeholder="Search projects..." value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-48">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="glass-card rounded-2xl p-16 text-center fade-in">
+          <div className="text-5xl mb-4">📁</div>
+          <div className="font-display font-bold text-white text-lg">No projects yet</div>
+          <p className="text-slate-400 text-sm mt-2">
+            {isAdmin ? 'Create your first project to get started.' : 'You have not been added to any projects yet.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filtered.map((project, i) => (
+            <div key={project._id} className="glass-card rounded-2xl p-6 hover:border-white/10 transition-all fade-in group"
+              style={{ animationDelay: `${i * 0.05}s` }}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-display font-bold text-sm">
+                  {project.title.charAt(0)}
+                </div>
+                <span className={statusColors[project.status] || 'badge-todo'}>{project.status}</span>
+              </div>
+              <h3 className="font-display font-bold text-white text-lg leading-tight mb-1">{project.title}</h3>
+              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{project.description || 'No description'}</p>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex -space-x-2">
+                  {project.members?.slice(0, 4).map(m => (
+                    <div key={m._id} title={m.name}
+                      className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 border-2 border-slate-900 flex items-center justify-center text-white text-xs font-semibold">
+                      {m.name.charAt(0)}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-xs text-slate-500">{project.members?.length || 0} member{project.members?.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="text-xs text-slate-600 mb-4">
+                Created by {project.createdBy?.name} · {new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              {isAdmin && (
+                <div className="flex gap-2 pt-3 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => setModal({ type: 'edit', project })} className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center">Edit</button>
+                  <button onClick={() => handleDelete(project._id)} className="btn-danger text-xs py-1.5 flex-1 justify-center">Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal isOpen={modal === 'create'} onClose={() => setModal(null)} title="New Project" size="md">
+        <ProjectForm allUsers={allUsers.filter(u => u.role === 'Member')} onSave={handleCreate} onCancel={() => setModal(null)} />
+      </Modal>
+
+      <Modal isOpen={modal?.type === 'edit'} onClose={() => setModal(null)} title="Edit Project" size="md">
+        {modal?.project && (
+          <ProjectForm
+            initial={{ title: modal.project.title, description: modal.project.description || '', status: modal.project.status, members: modal.project.members?.map(m => m._id) || [] }}
+            allUsers={allUsers.filter(u => u.role === 'Member')}
+            onSave={handleEdit}
+            onCancel={() => setModal(null)}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
