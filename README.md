@@ -1,6 +1,6 @@
 # TeamFlow — Team Task Manager
 
-A full-stack web application for team task management with role-based access control (RBAC).
+A full-stack web application for managing team projects and tasks with role-based access control. Admins can create projects, assign tasks with priorities and deadlines, and manage team members. Members can view and update their assigned tasks. Features a real-time dashboard with task statistics, overdue alerts, and progress tracking — built with React, Node.js, MongoDB, and JWT authentication.
 
 ## Tech Stack
 
